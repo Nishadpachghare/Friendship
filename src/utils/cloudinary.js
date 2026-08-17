@@ -19,7 +19,6 @@ export function getCloudinaryVideoThumbnail(videoUrl) {
   if (!videoUrl.includes('cloudinary.com')) return '';
 
   try {
-    // If it's a Cloudinary video URL, convert extension to .jpg and add start-offset so_0
     let url = videoUrl.replace(/\.[^/.]+$/, '.jpg');
     if (url.includes('/video/upload/') && !url.includes('/so_0/')) {
       url = url.replace('/video/upload/', '/video/upload/so_0,q_auto,f_auto/');
@@ -45,6 +44,40 @@ export function getOptimizedCloudinaryUrl(url, { width, quality = 'auto' } = {})
     return url.replace('/upload/', `/upload/${transformStr}`);
   }
   return url;
+}
+
+/**
+ * Helper to upload via unsigned preset
+ */
+async function tryUnsignedUpload(uploadUrl, file, preset, folder, resourceType) {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', preset);
+  if (folder) formData.append('folder', folder);
+
+  const res = await fetch(uploadUrl, {
+    method: 'POST',
+    body: formData,
+  });
+  const data = await res.json();
+  if (res.ok) {
+    let thumb = '';
+    if (data.resource_type === 'video' || resourceType === 'video') {
+      thumb = getCloudinaryVideoThumbnail(data.secure_url);
+    }
+    return {
+      url: data.url,
+      secure_url: data.secure_url,
+      public_id: data.public_id,
+      resource_type: data.resource_type || resourceType,
+      format: data.format,
+      width: data.width,
+      height: data.height,
+      duration: data.duration,
+      thumbnail_url: thumb,
+    };
+  }
+  return null;
 }
 
 /**
@@ -85,10 +118,28 @@ export async function uploadToCloudinary(file, options = {}) {
   const apiSecret = CLOUDINARY_CONFIG.apiSecret;
   const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`;
 
-  const timestamp = Math.floor(Date.now() / 1000);
+  // First try unsigned presets if configured
+  const candidatePresets = [
+    CLOUDINARY_CONFIG.uploadPreset,
+    'friendship_preset',
+    'ml_default',
+    'friendship',
+  ].filter(Boolean);
 
-  // Build signed parameters
-  // Cloudinary requires signing parameters in alphabetical order
+  for (const preset of candidatePresets) {
+    try {
+      const result = await tryUnsignedUpload(uploadUrl, file, preset, folder, resourceType);
+      if (result) {
+        if (onProgress) onProgress(100);
+        return result;
+      }
+    } catch {
+      // Continue to signed attempt
+    }
+  }
+
+  // Fallback to signed upload
+  const timestamp = Math.floor(Date.now() / 1000);
   const paramsToSign = [];
   if (folder) {
     paramsToSign.push(`folder=${folder}`);
@@ -146,46 +197,18 @@ export async function uploadToCloudinary(file, options = {}) {
           thumbnail_url: thumbnailUrl,
         });
       } else {
-        // If signed upload failed due to preset or permissions, attempt unsigned fallback if preset configured
-        const errorMsg = response?.error?.message || `Upload failed with status ${xhr.status}`;
-        console.warn('Cloudinary upload error:', errorMsg);
+        const rawMsg = response?.error?.message || `Upload failed with status ${xhr.status}`;
+        console.warn('Cloudinary upload error:', rawMsg);
 
-        if (CLOUDINARY_CONFIG.uploadPreset && !xhr.__retryUnsigned) {
-          try {
-            console.info('Attempting fallback to unsigned upload preset:', CLOUDINARY_CONFIG.uploadPreset);
-            const fallbackFormData = new FormData();
-            fallbackFormData.append('file', file);
-            fallbackFormData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
-            if (folder) fallbackFormData.append('folder', folder);
-
-            const fallbackRes = await fetch(uploadUrl, {
-              method: 'POST',
-              body: fallbackFormData,
-            });
-            const fallbackData = await fallbackRes.json();
-            if (fallbackRes.ok) {
-              let thumb = '';
-              if (fallbackData.resource_type === 'video' || resourceType === 'video') {
-                thumb = getCloudinaryVideoThumbnail(fallbackData.secure_url);
-              }
-              return resolve({
-                url: fallbackData.url,
-                secure_url: fallbackData.secure_url,
-                public_id: fallbackData.public_id,
-                resource_type: fallbackData.resource_type || resourceType,
-                format: fallbackData.format,
-                width: fallbackData.width,
-                height: fallbackData.height,
-                duration: fallbackData.duration,
-                thumbnail_url: thumb,
-              });
-            }
-          } catch (fallbackErr) {
-            console.error('Unsigned fallback failed:', fallbackErr);
-          }
+        if (rawMsg.includes('missing permissions') || rawMsg.includes('actions=["create"]')) {
+          reject(
+            new Error(
+              'Cloudinary permission missing: Please create an Unsigned Upload Preset named "friendship_preset" in your Cloudinary Settings -> Upload -> Upload Presets (or grant "Create" permission to your API Key).'
+            )
+          );
+        } else {
+          reject(new Error(rawMsg));
         }
-
-        reject(new Error(errorMsg));
       }
     };
 
