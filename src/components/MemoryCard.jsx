@@ -2,6 +2,7 @@ import React, { useMemo, useEffect, useState } from "react";
 import { Play } from "lucide-react";
 import { motion } from "framer-motion";
 import { createVideoThumbnail } from "../utils/videoThumbnail.js";
+import { getCloudinaryVideoThumbnail } from "../utils/cloudinary.js";
 
 export default function MemoryCard({ memory, onOpen }) {
   const [generatedThumb, setGeneratedThumb] = useState("");
@@ -22,15 +23,22 @@ export default function MemoryCard({ memory, onOpen }) {
     return "";
   }, [memory.thumbnailBlob]);
 
+  const cloudinaryVideoThumb = useMemo(() => {
+    if (memory.video) {
+      return getCloudinaryVideoThumbnail(memory.video);
+    }
+    return "";
+  }, [memory.video]);
+
   const thumbnailSrc =
-    thumbnailBlobSrc || memory.thumbnail || generatedThumb;
+    thumbnailBlobSrc || memory.thumbnail || cloudinaryVideoThumb || generatedThumb;
 
   const isVideo =
     memory.mediaType === "video" || (!!memory.video && !memory.image);
 
   useEffect(() => {
     if (!isVideo) return;
-    if (memory.thumbnailBlob instanceof Blob || memory.thumbnail) return;
+    if (memory.thumbnailBlob instanceof Blob || memory.thumbnail || cloudinaryVideoThumb) return;
     if (!(memory.mediaBlob instanceof Blob)) return;
 
     let cancelled = false;
@@ -42,7 +50,7 @@ export default function MemoryCard({ memory, onOpen }) {
     return () => {
       cancelled = true;
     };
-  }, [isVideo, memory.mediaBlob, memory.thumbnail, memory.thumbnailBlob]);
+  }, [isVideo, memory.mediaBlob, memory.thumbnail, memory.thumbnailBlob, cloudinaryVideoThumb]);
 
   useEffect(() => {
     return () => {
@@ -77,7 +85,7 @@ export default function MemoryCard({ memory, onOpen }) {
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             />
             <span className="absolute inset-0 flex items-center justify-center bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity">
-              <span className="bg-black/60 rounded-full p-3">
+              <span className="bg-black/60 rounded-full p-3 shadow-goldglow">
                 <Play size={22} className="text-gold fill-gold" />
               </span>
             </span>
@@ -92,7 +100,7 @@ export default function MemoryCard({ memory, onOpen }) {
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             />
             <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <span className="bg-black/50 rounded-full p-3">
+              <span className="bg-black/50 rounded-full p-3 shadow-goldglow">
                 <Play size={22} className="text-gold fill-gold" />
               </span>
             </span>

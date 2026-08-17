@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Plus, Trash2, Pencil, Play, Upload } from "lucide-react";
+import { Plus, Trash2, Pencil, Play, Upload, Loader2 } from "lucide-react";
 import { useData } from "../../context/DataContext.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
-import { blobToDataUrl } from "../../utils/videoThumbnail.js";
+import { uploadToCloudinary } from "../../utils/cloudinary.js";
 import GoldDivider from "../../components/GoldDivider.jsx";
 
 const EMPTY_FORM = {
@@ -22,9 +22,11 @@ export default function GuessPhotoBuilder() {
   } = useData();
   const { user } = useAuth();
   const [form, setForm] = useState(EMPTY_FORM);
-  const [imageBlob, setImageBlob] = useState(null);
+  const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState("");
   const [editingId, setEditingId] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -45,12 +47,13 @@ export default function GuessPhotoBuilder() {
 
   function resetForm() {
     setForm(EMPTY_FORM);
-    setImageBlob(null);
+    setImageFile(null);
     if (imagePreview.startsWith("blob:")) {
       URL.revokeObjectURL(imagePreview);
     }
     setImagePreview("");
     setEditingId(null);
+    setIsUploading(false);
     setError("");
   }
 
@@ -62,8 +65,8 @@ export default function GuessPhotoBuilder() {
       setError("Please upload a photo (not a video).");
       return;
     }
-    if (file.size > 3 * 1024 * 1024) {
-      setError("That photo is a bit large — try one under 3MB.");
+    if (file.size > 20 * 1024 * 1024) {
+      setError("That photo is a bit large — try one under 20MB.");
       return;
     }
 
@@ -71,7 +74,7 @@ export default function GuessPhotoBuilder() {
     if (imagePreview.startsWith("blob:")) {
       URL.revokeObjectURL(imagePreview);
     }
-    setImageBlob(file);
+    setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
   }
 
@@ -80,7 +83,7 @@ export default function GuessPhotoBuilder() {
     const prompt = form.prompt.trim() || "Where was this?";
     const options = form.options.map((o) => o.trim()).filter(Boolean);
 
-    if (!imageBlob && !imagePreview && !editingId) {
+    if (!imageFile && !imagePreview && !editingId) {
       setError("Please upload a photo for this round.");
       return;
     }
@@ -97,20 +100,32 @@ export default function GuessPhotoBuilder() {
       return;
     }
 
-    let image = "";
-    if (imageBlob instanceof Blob) {
-      image = await blobToDataUrl(imageBlob);
+    let finalImageUrl = "";
+    if (imageFile) {
+      setIsUploading(true);
+      setUploadProgress(0);
+      try {
+        const uploadResult = await uploadToCloudinary(imageFile, {
+          resourceType: "image",
+          onProgress: (pct) => setUploadProgress(pct),
+        });
+        finalImageUrl = uploadResult.secure_url;
+      } catch (err) {
+        console.error("Cloudinary upload failed:", err);
+        setError(`Upload to Cloudinary failed: ${err.message || "Unknown error"}`);
+        setIsUploading(false);
+        return;
+      }
     } else if (editingId) {
       const existing = guessPhotoRounds.find((r) => r.id === editingId);
-      image = existing?.image || "";
+      finalImageUrl = existing?.image || "";
     }
 
     const payload = {
       prompt,
       options,
       answer: form.answer.trim(),
-      image,
-      imageBlob: imageBlob || null,
+      image: finalImageUrl,
       addedBy: user?.displayName,
     };
 
@@ -134,7 +149,7 @@ export default function GuessPhotoBuilder() {
       ],
       answer: round.answer,
     });
-    setImageBlob(null);
+    setImageFile(null);
     if (imagePreview.startsWith("blob:")) {
       URL.revokeObjectURL(imagePreview);
     }
@@ -150,9 +165,8 @@ export default function GuessPhotoBuilder() {
         Build Guess The Memory
       </h1>
       <p className="text-parchment/60 text-sm mb-6">
-        Upload blurred-memory photos with answer choices. Once saved, they appear
-        directly in{" "}
-        <span className="text-gold">Guess The Memory</span>.
+        Upload photos directly to Cloudinary with answer choices. Once saved, they appear
+        instantly in <span className="text-gold">Guess The Memory</span>.
       </p>
 
       <GoldDivider />
@@ -167,15 +181,26 @@ export default function GuessPhotoBuilder() {
 
         <div>
           <label className="block text-xs tracking-wide text-ash mb-1">
-            PHOTO
+            PHOTO (Uploaded directly to Cloudinary)
           </label>
-          <label className="flex items-center gap-2 justify-center border border-dashed border-gold/30 rounded-lg py-4 cursor-pointer hover:border-gold/60 transition-colors">
+          <label
+            className={`flex items-center gap-2 justify-center border border-dashed border-gold/30 rounded-lg py-4 transition-colors ${
+              isUploading
+                ? "opacity-50 cursor-not-allowed"
+                : "cursor-pointer hover:border-gold/60"
+            }`}
+          >
             <Upload size={16} className="text-gold" />
             <span className="text-sm text-parchment/70">
-              {imagePreview ? "Photo selected" : "Click to upload a photo"}
+              {imageFile
+                ? `Photo selected (${imageFile.name})`
+                : imagePreview
+                  ? "Change photo"
+                  : "Click to upload a photo"}
             </span>
             <input
               type="file"
+              disabled={isUploading}
               accept="image/*"
               onChange={handleFile}
               className="hidden"
@@ -197,9 +222,10 @@ export default function GuessPhotoBuilder() {
           </label>
           <input
             value={form.prompt}
+            disabled={isUploading}
             onChange={(e) => setForm((p) => ({ ...p, prompt: e.target.value }))}
             placeholder="Where was this?"
-            className="w-full bg-ink/60 border border-gold/25 rounded-lg px-3 py-2 text-parchment"
+            className="w-full bg-ink/60 border border-gold/25 rounded-lg px-3 py-2 text-parchment disabled:opacity-50"
           />
         </div>
 
@@ -211,9 +237,10 @@ export default function GuessPhotoBuilder() {
             <input
               key={i}
               value={opt}
+              disabled={isUploading}
               onChange={(e) => setOption(i, e.target.value)}
               placeholder={`Option ${i + 1}`}
-              className="w-full bg-ink/60 border border-gold/25 rounded-lg px-3 py-2 text-parchment"
+              className="w-full bg-ink/60 border border-gold/25 rounded-lg px-3 py-2 text-parchment disabled:opacity-50"
             />
           ))}
         </div>
@@ -224,8 +251,9 @@ export default function GuessPhotoBuilder() {
           </label>
           <select
             value={form.answer}
+            disabled={isUploading}
             onChange={(e) => setForm((p) => ({ ...p, answer: e.target.value }))}
-            className="w-full bg-ink/60 border border-gold/25 rounded-lg px-3 py-2 text-parchment"
+            className="w-full bg-ink/60 border border-gold/25 rounded-lg px-3 py-2 text-parchment disabled:opacity-50"
           >
             <option value="">Select correct answer...</option>
             {form.options
@@ -241,19 +269,46 @@ export default function GuessPhotoBuilder() {
 
         {error && <p className="text-sm text-red-400">{error}</p>}
 
+        {isUploading && (
+          <div className="space-y-1.5 p-3 rounded-lg bg-ink/70 border border-gold/20">
+            <div className="flex justify-between items-center text-xs text-gold">
+              <span className="flex items-center gap-1.5">
+                <Loader2 size={13} className="animate-spin" /> Uploading to Cloudinary...
+              </span>
+              <span>{uploadProgress}%</span>
+            </div>
+            <div className="w-full h-2 bg-ink2 rounded-full overflow-hidden border border-gold/10">
+              <div
+                className="h-full bg-gradient-to-r from-gold to-gold-light transition-all duration-200"
+                style={{ width: `${uploadProgress}%` }}
+              />
+            </div>
+          </div>
+        )}
+
         <div className="flex flex-wrap gap-3">
           <button
             type="submit"
-            className="inline-flex items-center gap-2 bg-gold hover:bg-gold-light text-ink font-medium rounded-lg px-5 py-2.5 transition-colors"
+            disabled={isUploading}
+            className="inline-flex items-center gap-2 bg-gold hover:bg-gold-light disabled:opacity-50 disabled:cursor-not-allowed text-ink font-medium rounded-lg px-5 py-2.5 transition-colors"
           >
-            <Plus size={16} />
-            {editingId ? "Update round" : "Add round"}
+            {isUploading ? (
+              <>
+                <Loader2 size={16} className="animate-spin" /> Uploading... ({uploadProgress}%)
+              </>
+            ) : (
+              <>
+                <Plus size={16} />
+                {editingId ? "Update round" : "Add round"}
+              </>
+            )}
           </button>
           {editingId && (
             <button
               type="button"
+              disabled={isUploading}
               onClick={resetForm}
-              className="text-sm text-parchment/60 hover:text-gold px-4 py-2.5"
+              className="text-sm text-parchment/60 hover:text-gold px-4 py-2.5 disabled:opacity-40"
             >
               Cancel edit
             </button>
@@ -283,75 +338,75 @@ export default function GuessPhotoBuilder() {
         ) : (
           <div className="space-y-3">
             {guessPhotoRounds.map((round, i) => (
-                <motion.div
-                  key={round.id}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.04 }}
-                  className="glass rounded-xl p-4 sm:p-5"
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="w-20 h-20 rounded-lg overflow-hidden bg-ink2 shrink-0">
-                      {round.image ? (
-                        <img
-                          src={round.image}
-                          alt=""
-                          className="w-full h-full object-cover"
-                          style={{ filter: "blur(6px) brightness(0.7)" }}
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-ash text-[10px] tracking-widest">
-                          NO PHOTO
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-gold tracking-widest mb-1">
-                        ROUND {i + 1}
-                      </p>
-                      <p className="text-parchment/90 text-sm sm:text-base">
-                        {round.prompt || "Where was this?"}
-                      </p>
-                      <ul className="mt-2 space-y-1">
-                        {round.options.map((opt) => (
-                          <li
-                            key={opt}
-                            className={`text-xs sm:text-sm ${
-                              opt === round.answer
-                                ? "text-gold"
-                                : "text-parchment/50"
-                            }`}
-                          >
-                            {opt === round.answer ? "✓ " : "· "}
-                            {opt}
-                          </li>
-                        ))}
-                      </ul>
-                      {round.addedBy && (
-                        <p className="text-ash text-xs mt-2">
-                          by {round.addedBy}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex gap-2 shrink-0">
-                      <button
-                        onClick={() => startEdit(round)}
-                        aria-label="Edit round"
-                        className="text-ash hover:text-gold p-1.5"
-                      >
-                        <Pencil size={16} />
-                      </button>
-                      <button
-                        onClick={() => deleteGuessPhotoRound(round.id)}
-                        aria-label="Delete round"
-                        className="text-ash hover:text-red-400 p-1.5"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
+              <motion.div
+                key={round.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.04 }}
+                className="glass rounded-xl p-4 sm:p-5"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="w-20 h-20 rounded-lg overflow-hidden bg-ink2 shrink-0">
+                    {round.image ? (
+                      <img
+                        src={round.image}
+                        alt=""
+                        className="w-full h-full object-cover"
+                        style={{ filter: "blur(6px) brightness(0.7)" }}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-ash text-[10px] tracking-widest">
+                        NO PHOTO
+                      </div>
+                    )}
                   </div>
-                </motion.div>
-              ))}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-gold tracking-widest mb-1">
+                      ROUND {i + 1}
+                    </p>
+                    <p className="text-parchment/90 text-sm sm:text-base">
+                      {round.prompt || "Where was this?"}
+                    </p>
+                    <ul className="mt-2 space-y-1">
+                      {round.options.map((opt) => (
+                        <li
+                          key={opt}
+                          className={`text-xs sm:text-sm ${
+                            opt === round.answer
+                              ? "text-gold"
+                              : "text-parchment/50"
+                          }`}
+                        >
+                          {opt === round.answer ? "✓ " : "· "}
+                          {opt}
+                        </li>
+                      ))}
+                    </ul>
+                    {round.addedBy && (
+                      <p className="text-ash text-xs mt-2">
+                        by {round.addedBy}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => startEdit(round)}
+                      aria-label="Edit round"
+                      className="text-ash hover:text-gold p-1.5"
+                    >
+                      <Pencil size={16} />
+                    </button>
+                    <button
+                      onClick={() => deleteGuessPhotoRound(round.id)}
+                      aria-label="Delete round"
+                      className="text-ash hover:text-red-400 p-1.5"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
           </div>
         )}
       </div>

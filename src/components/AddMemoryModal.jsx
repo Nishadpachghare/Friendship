@@ -1,28 +1,30 @@
 import React, { useState, useEffect } from "react";
-import { X, Upload } from "lucide-react";
+import { X, Upload, Loader2, CheckCircle2 } from "lucide-react";
 import { MEMORY_CATEGORIES } from "../data/seedData.js";
 import { useAuth } from "../context/AuthContext.jsx";
-import { createVideoThumbnail, blobToDataUrl } from "../utils/videoThumbnail.js";
+import { createVideoThumbnail } from "../utils/videoThumbnail.js";
+import { uploadToCloudinary, getCloudinaryVideoThumbnail } from "../utils/cloudinary.js";
 
 export default function AddMemoryModal({ onClose, onSave }) {
   const { user } = useAuth();
   const [caption, setCaption] = useState("");
   const [date, setDate] = useState("");
   const [category, setCategory] = useState(MEMORY_CATEGORIES[0]);
-  const [image, setImage] = useState("");
-  const [video, setVideo] = useState("");
-  const [mediaBlob, setMediaBlob] = useState(null);
+  const [mediaFile, setMediaFile] = useState(null);
   const [mediaType, setMediaType] = useState("");
   const [mediaPreview, setMediaPreview] = useState("");
-  const [thumbnailBlob, setThumbnailBlob] = useState(null);
   const [thumbnailPreview, setThumbnailPreview] = useState("");
   const [isGeneratingThumb, setIsGeneratingThumb] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState("");
 
   useEffect(() => {
     return () => {
-      if (mediaPreview) URL.revokeObjectURL(mediaPreview);
-      if (thumbnailPreview.startsWith("blob:")) {
+      if (mediaPreview && mediaPreview.startsWith("blob:")) {
+        URL.revokeObjectURL(mediaPreview);
+      }
+      if (thumbnailPreview && thumbnailPreview.startsWith("blob:")) {
         URL.revokeObjectURL(thumbnailPreview);
       }
     };
@@ -33,38 +35,41 @@ export default function AddMemoryModal({ onClose, onSave }) {
     if (!file) return;
 
     const isVideo = file.type.startsWith("video/");
-    const maxSizeMb = isVideo ? 100 : 3;
+    const maxSizeMb = isVideo ? 100 : 25;
     if (file.size > maxSizeMb * 1024 * 1024) {
       setError(
-        `That ${isVideo ? "video" : "photo"} is a bit large -- try one under ${maxSizeMb}MB.`,
+        `That ${isVideo ? "video" : "photo"} is a bit large — try one under ${maxSizeMb}MB.`,
       );
       return;
     }
 
     setError("");
-    if (mediaPreview) URL.revokeObjectURL(mediaPreview);
+    if (mediaPreview && mediaPreview.startsWith("blob:")) {
+      URL.revokeObjectURL(mediaPreview);
+    }
     const previewUrl = URL.createObjectURL(file);
-    setMediaBlob(file);
+    setMediaFile(file);
     setMediaType(isVideo ? "video" : "image");
     setMediaPreview(previewUrl);
 
     if (isVideo) {
-      setVideo(previewUrl);
-      setImage("");
-      if (thumbnailPreview.startsWith("blob:")) {
+      if (thumbnailPreview && thumbnailPreview.startsWith("blob:")) {
         URL.revokeObjectURL(thumbnailPreview);
       }
       setThumbnailPreview("");
       setIsGeneratingThumb(true);
-      const generatedThumb = await createVideoThumbnail(file);
-      setThumbnailBlob(generatedThumb);
-      setThumbnailPreview(generatedThumb ? URL.createObjectURL(generatedThumb) : "");
-      setIsGeneratingThumb(false);
+      try {
+        const generatedThumb = await createVideoThumbnail(file);
+        if (generatedThumb) {
+          setThumbnailPreview(URL.createObjectURL(generatedThumb));
+        }
+      } catch (err) {
+        console.warn("Could not generate client video thumbnail:", err);
+      } finally {
+        setIsGeneratingThumb(false);
+      }
     } else {
-      setImage(previewUrl);
-      setVideo("");
-      setThumbnailBlob(null);
-      if (thumbnailPreview.startsWith("blob:")) {
+      if (thumbnailPreview && thumbnailPreview.startsWith("blob:")) {
         URL.revokeObjectURL(thumbnailPreview);
       }
       setThumbnailPreview("");
@@ -79,29 +84,47 @@ export default function AddMemoryModal({ onClose, onSave }) {
       return;
     }
 
-    let finalThumbnail = thumbnailBlob;
-    if (mediaType === "video" && mediaBlob instanceof Blob && !finalThumbnail) {
-      setIsGeneratingThumb(true);
-      finalThumbnail = await createVideoThumbnail(mediaBlob);
-      setThumbnailBlob(finalThumbnail);
-      setIsGeneratingThumb(false);
-    }
+    let finalImageUrl = "";
+    let finalVideoUrl = "";
+    let finalThumbnailUrl = "";
 
-    const thumbnail =
-      finalThumbnail instanceof Blob ? await blobToDataUrl(finalThumbnail) : "";
+    if (mediaFile) {
+      setIsUploading(true);
+      setUploadProgress(0);
+      try {
+        const uploadResult = await uploadToCloudinary(mediaFile, {
+          resourceType: mediaType === "video" ? "video" : "image",
+          onProgress: (pct) => setUploadProgress(pct),
+        });
+
+        if (mediaType === "video") {
+          finalVideoUrl = uploadResult.secure_url;
+          finalThumbnailUrl =
+            uploadResult.thumbnail_url ||
+            getCloudinaryVideoThumbnail(uploadResult.secure_url);
+        } else {
+          finalImageUrl = uploadResult.secure_url;
+        }
+      } catch (err) {
+        console.error("Cloudinary upload failed:", err);
+        setError(`Upload to Cloudinary failed: ${err.message || "Unknown error"}`);
+        setIsUploading(false);
+        return;
+      }
+    }
 
     onSave({
       caption: caption.trim(),
       date,
       category,
-      image: "",
-      video: "",
-      mediaBlob,
-      mediaType,
-      thumbnailBlob: finalThumbnail,
-      thumbnail,
+      image: finalImageUrl,
+      video: finalVideoUrl,
+      mediaType: mediaType || (finalVideoUrl ? "video" : finalImageUrl ? "image" : ""),
+      thumbnail: finalThumbnailUrl,
       addedBy: user?.displayName,
     });
+
+    setIsUploading(false);
     onClose();
   }
 
@@ -110,14 +133,15 @@ export default function AddMemoryModal({ onClose, onSave }) {
       <div className="glass rounded-2xl w-full max-w-lg p-6 sm:p-8 relative shadow-goldglow">
         <button
           onClick={onClose}
+          disabled={isUploading}
           aria-label="Close"
-          className="absolute top-4 right-4 text-ash hover:text-gold"
+          className="absolute top-4 right-4 text-ash hover:text-gold disabled:opacity-40"
         >
           <X size={20} />
         </button>
         <h2 className="font-display text-2xl text-gold mb-1">Add a memory</h2>
         <p className="text-parchment/60 text-sm mb-6">
-          Saved as added by {user?.displayName}.
+          Saved directly to Cloudinary and added by {user?.displayName}.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -128,8 +152,9 @@ export default function AddMemoryModal({ onClose, onSave }) {
             <input
               type="date"
               value={date}
+              disabled={isUploading}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full bg-ink/60 border border-gold/25 rounded-lg px-3 py-2 text-parchment"
+              className="w-full bg-ink/60 border border-gold/25 rounded-lg px-3 py-2 text-parchment disabled:opacity-50"
             />
           </div>
 
@@ -139,8 +164,9 @@ export default function AddMemoryModal({ onClose, onSave }) {
             </label>
             <select
               value={category}
+              disabled={isUploading}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full bg-ink/60 border border-gold/25 rounded-lg px-3 py-2 text-parchment"
+              className="w-full bg-ink/60 border border-gold/25 rounded-lg px-3 py-2 text-parchment disabled:opacity-50"
             >
               {MEMORY_CATEGORIES.map((c) => (
                 <option key={c} value={c}>
@@ -156,41 +182,49 @@ export default function AddMemoryModal({ onClose, onSave }) {
             </label>
             <textarea
               value={caption}
+              disabled={isUploading}
               onChange={(e) => setCaption(e.target.value)}
               rows={3}
               placeholder="What happened here?"
-              className="w-full bg-ink/60 border border-gold/25 rounded-lg px-3 py-2 text-parchment resize-none"
+              className="w-full bg-ink/60 border border-gold/25 rounded-lg px-3 py-2 text-parchment resize-none disabled:opacity-50"
             />
           </div>
 
           <div>
             <label className="block text-xs tracking-wide text-ash mb-1">
-              PHOTO OR VIDEO (optional)
+              PHOTO OR VIDEO (Direct Cloudinary Upload)
             </label>
-            <label className="flex items-center gap-2 justify-center border border-dashed border-gold/30 rounded-lg py-4 cursor-pointer hover:border-gold/60 transition-colors">
+            <label
+              className={`flex items-center gap-2 justify-center border border-dashed border-gold/30 rounded-lg py-4 transition-colors ${
+                isUploading
+                  ? "opacity-50 cursor-not-allowed"
+                  : "cursor-pointer hover:border-gold/60"
+              }`}
+            >
               <Upload size={16} className="text-gold" />
               <span className="text-sm text-parchment/70">
-                {image
-                  ? "Photo selected"
-                  : video
-                    ? "Video selected"
-                    : "Click to upload a photo or video"}
+                {mediaFile
+                  ? `${mediaType === "video" ? "Video" : "Photo"} selected (${mediaFile.name})`
+                  : "Click to choose a photo or video"}
               </span>
               <input
                 type="file"
+                disabled={isUploading}
                 accept="image/*,video/*"
                 onChange={handleFile}
                 className="hidden"
               />
             </label>
-            {image && (
+
+            {mediaType === "image" && mediaPreview && (
               <img
-                src={image}
+                src={mediaPreview}
                 alt="Preview"
                 className="mt-3 rounded-lg max-h-40 mx-auto object-cover"
               />
             )}
-            {video && thumbnailPreview && (
+
+            {mediaType === "video" && thumbnailPreview && (
               <div className="mt-3 relative rounded-lg overflow-hidden max-h-40 mx-auto">
                 <img
                   src={thumbnailPreview}
@@ -202,9 +236,10 @@ export default function AddMemoryModal({ onClose, onSave }) {
                 </span>
               </div>
             )}
-            {video && !thumbnailPreview && !isGeneratingThumb && (
+
+            {mediaType === "video" && !thumbnailPreview && mediaPreview && (
               <video
-                src={video}
+                src={mediaPreview}
                 controls
                 className="mt-3 rounded-lg max-h-40 mx-auto"
               />
@@ -214,18 +249,43 @@ export default function AddMemoryModal({ onClose, onSave }) {
           {error && <p className="text-sm text-red-400">{error}</p>}
 
           {isGeneratingThumb && (
-            <p className="text-xs text-gold/80">
-              Generating video thumbnail...
+            <p className="text-xs text-gold/80 flex items-center gap-1.5">
+              <Loader2 size={12} className="animate-spin" /> Generating video thumbnail...
             </p>
+          )}
+
+          {isUploading && (
+            <div className="space-y-1.5 p-3 rounded-lg bg-ink/70 border border-gold/20">
+              <div className="flex justify-between items-center text-xs text-gold">
+                <span className="flex items-center gap-1.5">
+                  <Loader2 size={13} className="animate-spin" /> Uploading to Cloudinary...
+                </span>
+                <span>{uploadProgress}%</span>
+              </div>
+              <div className="w-full h-2 bg-ink2 rounded-full overflow-hidden border border-gold/10">
+                <div
+                  className="h-full bg-gradient-to-r from-gold to-gold-light transition-all duration-200"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+            </div>
           )}
 
           <button
             type="submit"
-            disabled={isGeneratingThumb}
-            aria-busy={isGeneratingThumb}
-            className="w-full bg-gold hover:bg-gold-light transition-colors text-ink font-medium tracking-wide rounded-lg py-3"
+            disabled={isGeneratingThumb || isUploading}
+            aria-busy={isGeneratingThumb || isUploading}
+            className="w-full bg-gold hover:bg-gold-light disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-ink font-medium tracking-wide rounded-lg py-3 flex items-center justify-center gap-2"
           >
-            {isGeneratingThumb ? "Preparing thumbnail..." : "Save memory"}
+            {isUploading ? (
+              <>
+                <Loader2 size={16} className="animate-spin" /> Uploading... ({uploadProgress}%)
+              </>
+            ) : isGeneratingThumb ? (
+              "Preparing thumbnail..."
+            ) : (
+              "Save memory"
+            )}
           </button>
         </form>
       </div>
