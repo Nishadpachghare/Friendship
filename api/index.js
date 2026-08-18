@@ -1,7 +1,6 @@
-require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
-const express = require('express');
-const cors = require('cors');
-const { MongoClient, ObjectId } = require('mongodb');
+import express from 'express';
+import cors from 'cors';
+import { MongoClient, ObjectId } from 'mongodb';
 
 const app = express();
 const URI = process.env.MONGO_URI || 'mongodb+srv://pachgharenishad05_db_user:lh6Ot9GGKnbFlnvj@cluster0.25awifo.mongodb.net/?appName=Cluster0';
@@ -9,7 +8,7 @@ const URI = process.env.MONGO_URI || 'mongodb+srv://pachgharenishad05_db_user:lh
 app.use(cors({ origin: true }));
 app.use(express.json({ limit: '50mb' }));
 
-// ── Health check (MUST BE FIRST, NO DB DEPENDENCY) ───────────────────────────
+// ── Health check (NO DB DEPENDENCY FOR INSTANT 200 OK) ────────────────────────
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
 let db;
@@ -21,7 +20,7 @@ async function getDb() {
   });
   await client.connect();
   db = client.db('friendship_story');
-  console.log('✅ MongoDB connected in serverless function →', db.databaseName);
+  console.log('✅ MongoDB connected in Vercel serverless handler →', db.databaseName);
   return db;
 }
 
@@ -227,4 +226,4 @@ app.post('/api/scores', async (req, res) => {
   }
 });
 
-module.exports = app;
+export default app;

@@ -1,23 +1,18 @@
-require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
-
-const express    = require('express');
-const cors       = require('cors');
-const { MongoClient, ObjectId } = require('mongodb');
+import 'dotenv/config';
+import express from 'express';
+import cors from 'cors';
+import { MongoClient, ObjectId } from 'mongodb';
 
 const app  = express();
 const PORT = process.env.PORT || 3001;
-const URI  = process.env.MONGO_URI;
+const URI  = process.env.MONGO_URI || 'mongodb+srv://pachgharenishad05_db_user:lh6Ot9GGKnbFlnvj@cluster0.25awifo.mongodb.net/?appName=Cluster0';
 
-if (!URI) {
-  console.error('❌  MONGO_URI not set in .env');
-  process.exit(1);
-}
-
-// ─── Middleware ───────────────────────────────────────────────────────────────
 app.use(cors({ origin: true }));
-app.use(express.json({ limit: '50mb' })); // Higher limit for data URLs/images
+app.use(express.json({ limit: '50mb' }));
 
-// ─── DB connection ────────────────────────────────────────────────────────────
+// ── Health check ──
+app.get('/api/health', (_req, res) => res.json({ ok: true }));
+
 let db;
 
 async function connectDb() {
@@ -32,10 +27,6 @@ function getCollection(name) {
   return db.collection(name);
 }
 
-// ─── Health check ─────────────────────────────────────────────────────────────
-app.get('/api/health', (_req, res) => res.json({ ok: true }));
-
-// ─── Helper: clean mongo _id → id ────────────────────────────────────────────
 function toClient(doc) {
   if (!doc) return doc;
   const { _id, ...rest } = doc;
@@ -49,9 +40,7 @@ function makeQuery(id) {
   return { id: id };
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  TIMELINE EVENTS
-// ═══════════════════════════════════════════════════════════════════════════════
+// ── Timeline ──
 const SEED_TIMELINE = [
   { title: 'First Sorry', emoji: '🥺', date: '2026-07-14', text: 'I knew I was wrong, so I made you a little coding website to say sorry. I\'ve never had an ego with you; losing you matters more.' },
   { title: 'First Chat', emoji: '💬', date: '2025-09-20', text: 'It all started with one random mention about a BMW drift, and somehow that one little moment turned into a journey this thrilling.' },
@@ -67,7 +56,6 @@ app.get('/api/timeline', async (_req, res) => {
     const col = getCollection('timeline_events');
     let docs = await col.find({}).sort({ date: 1 }).toArray();
 
-    // Auto-seed MongoDB if empty
     if (docs.length === 0) {
       console.log('🌱 Seeding timeline_events in MongoDB...');
       const seedDocs = SEED_TIMELINE.map((item) => ({ ...item, createdAt: new Date() }));
@@ -121,9 +109,7 @@ app.delete('/api/timeline/:id', async (req, res) => {
   }
 });
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  QUIZ QUESTIONS
-// ═══════════════════════════════════════════════════════════════════════════════
+// ── Quiz ──
 app.get('/api/quiz', async (_req, res) => {
   try {
     const docs = await getCollection('quiz_questions')
@@ -176,9 +162,7 @@ app.delete('/api/quiz/:id', async (req, res) => {
   }
 });
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  GUESS PHOTO ROUNDS
-// ═══════════════════════════════════════════════════════════════════════════════
+// ── Guess Photo ──
 app.get('/api/guess-photo', async (_req, res) => {
   try {
     const docs = await getCollection('guess_photo_rounds')
@@ -231,9 +215,7 @@ app.delete('/api/guess-photo/:id', async (req, res) => {
   }
 });
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  GAME SCORES / LEADERBOARD
-// ═══════════════════════════════════════════════════════════════════════════════
+// ── Game Scores ──
 app.get('/api/scores', async (_req, res) => {
   try {
     const docs = await getCollection('game_scores')
@@ -259,17 +241,14 @@ app.post('/api/scores', async (req, res) => {
   }
 });
 
-// ─── Start ────────────────────────────────────────────────────────────────────
+// ── Start ──
 connectDb()
   .then(() => {
     app.listen(PORT, () => {
-      console.log(`🚀  Server running on http://localhost:${PORT}`);
-      console.log(`    Quiz API:        GET http://localhost:${PORT}/api/quiz`);
-      console.log(`    Guess Photo API: GET http://localhost:${PORT}/api/guess-photo`);
-      console.log(`    Scores API:      GET http://localhost:${PORT}/api/scores`);
+      console.log(`🚀 Server running on http://localhost:${PORT}`);
     });
   })
   .catch((err) => {
-    console.error('❌  Could not connect to MongoDB:', err.message);
+    console.error('❌ Could not connect to MongoDB:', err.message);
     process.exit(1);
   });
