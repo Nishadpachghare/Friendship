@@ -4,8 +4,47 @@ import { motion } from "framer-motion";
 import { Plus, Trash2, Pencil, Play, Upload, Loader2 } from "lucide-react";
 import { useData } from "../../context/DataContext.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
-import { uploadToCloudinary } from "../../utils/cloudinary.js";
+import { uploadToCloudinary, resolveLocalBlobUrl } from "../../utils/cloudinary.js";
 import GoldDivider from "../../components/GoldDivider.jsx";
+
+function RoundThumbnail({ image }) {
+  const [src, setSrc] = useState("");
+  useEffect(() => {
+    let cancelled = false;
+    let createdUrl = "";
+    async function load() {
+      if (!image) { setSrc(""); return; }
+      if (image.startsWith("localblob://")) {
+        createdUrl = await resolveLocalBlobUrl(image);
+        if (!cancelled) setSrc(createdUrl);
+      } else {
+        if (!cancelled) setSrc(image);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+      if (createdUrl && createdUrl.startsWith("blob:")) URL.revokeObjectURL(createdUrl);
+    };
+  }, [image]);
+
+  if (!src) {
+    return (
+      <div className="w-full h-full flex items-center justify-center text-ash text-[10px] tracking-widest">
+        NO PHOTO
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt=""
+      className="w-full h-full object-cover"
+      style={{ filter: "blur(4px) brightness(0.8)" }}
+    />
+  );
+}
 
 const EMPTY_FORM = {
   prompt: "Where was this?",
@@ -347,18 +386,7 @@ export default function GuessPhotoBuilder() {
               >
                 <div className="flex items-start gap-4">
                   <div className="w-20 h-20 rounded-lg overflow-hidden bg-ink2 shrink-0">
-                    {round.image ? (
-                      <img
-                        src={round.image}
-                        alt=""
-                        className="w-full h-full object-cover"
-                        style={{ filter: "blur(6px) brightness(0.7)" }}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-ash text-[10px] tracking-widest">
-                        NO PHOTO
-                      </div>
-                    )}
+                    <RoundThumbnail image={round.image} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-gold tracking-widest mb-1">

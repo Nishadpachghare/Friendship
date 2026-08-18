@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Plus } from "lucide-react";
+import { X, Plus, Database } from "lucide-react";
 import { useData } from "../context/DataContext.jsx";
 import { STORY_META } from "../data/seedData.js";
 import GoldDivider from "../components/GoldDivider.jsx";
@@ -66,8 +66,11 @@ export default function Timeline() {
           <span className="text-lg">♥</span>
           <div className="w-16 h-px bg-gradient-to-l from-transparent to-gold" />
         </div>
-        <p className="text-sm text-ash font-medium">
-          A timeline of our beautiful journey together ✨
+        <p className="text-sm text-ash font-medium flex items-center justify-center gap-2 mt-1">
+          <span>A timeline of our beautiful journey together ✨</span>
+          <span className="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full font-sans tracking-wide flex items-center gap-1">
+            <Database size={10} /> MongoDB
+          </span>
         </p>
       </div>
 
@@ -151,13 +154,28 @@ export default function Timeline() {
                     className="sm:hidden glass rounded-xl p-5 cursor-pointer hover:border-gold/45 transition-colors"
                     onClick={() => setActive(t)}
                   >
-                    <span className="inline-block text-[10px] font-bold text-gold bg-gold/10 border border-gold/20 px-2.5 py-0.5 rounded-full uppercase tracking-wider mb-2.5">
+                    <span className="inline-block text-[10px] font-bold text-gold bg-gold/10 border border-gold/20 px-2.5 py-0.5 rounded-full uppercase tracking-wider mb-2">
                       {formatTimelineDate(t.date)}
                     </span>
                     <h4 className="font-display text-xl text-parchment mt-0.5 flex items-center gap-1.5">
                       {t.title}{" "}
                       <span className="text-gold text-base font-light">♡</span>
                     </h4>
+                    <p className="text-xs text-ash mt-2 leading-relaxed font-medium">
+                      {t.text}
+                    </p>
+
+                    {isFirstMeet && (
+                      <div className="flex flex-wrap gap-x-2 gap-y-1 text-[11px] text-ash mt-3 pt-2.5 border-t border-gold/10">
+                        <span className="flex items-center gap-1 font-medium">
+                          <span className="text-gold">📍</span> {STORY_META.firstMeetLocation}
+                        </span>
+                        <span className="text-gold/30">|</span>
+                        <span className="flex items-center gap-1 font-medium">
+                          <span className="text-gold">🕒</span> {STORY_META.firstMeetTime}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Desktop content card for odd indexes */}

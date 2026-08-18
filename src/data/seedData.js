@@ -7,7 +7,7 @@
 // ============================================================================
 
 export const STORY_META = {
-  namesShort: 'B & N',                  // shows in the nav / footer
+  namesShort: 'Friendship Story',                  // shows in the nav / footer
   firstMeetDate: 'May 22th, 2026',
   firstMeetLocation: 'Nagpur, Lokmanya Nagar Metro Station',
   firstMeetTime: '12:16 PM',

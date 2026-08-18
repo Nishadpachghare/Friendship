@@ -80,3 +80,11 @@ select:focus {
   background: #8a7530;
   border-radius: 4px;
 }
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

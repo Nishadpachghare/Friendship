@@ -7,10 +7,10 @@
 export const USERS = [
   {
     id: 'user1',
-    username: 'riya',
+    username: 'bhoomi',
     password: 'ourstory1',
-    displayName: 'Riya',
-    avatar: 'R',
+    displayName: 'Bhoomi',
+    avatar: 'B',
   },
   {
     id: 'user2',

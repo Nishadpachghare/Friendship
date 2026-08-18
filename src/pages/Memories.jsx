@@ -1,11 +1,12 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Plus, Trash2 } from "lucide-react";
+import { X, Plus, Trash2, Cloud } from "lucide-react";
 import { useData } from "../context/DataContext.jsx";
 import { MEMORY_CATEGORIES } from "../data/seedData.js";
 import MemoryCard from "../components/MemoryCard.jsx";
 import AddMemoryModal from "../components/AddMemoryModal.jsx";
 import GoldDivider from "../components/GoldDivider.jsx";
+import { getOptimizedCloudinaryUrl, isLocalBlobUrl, resolveLocalBlobUrl } from "../utils/cloudinary.js";
 
 export default function Memories() {
   const { memories, addMemory, deleteMemory } = useData();
@@ -21,22 +22,34 @@ export default function Memories() {
     [memories, filter],
   );
 
-  const openMediaSrc = useMemo(() => {
-    if (!open) return "";
-    if (open.mediaBlob instanceof Blob)
-      return URL.createObjectURL(open.mediaBlob);
-    if (open.video) return open.video;
-    if (open.image) return open.image;
-    return "";
-  }, [open]);
+  const [openMediaSrc, setOpenMediaSrc] = useState("");
 
+  // Resolve media URL — handles Cloudinary, data URLs, and localblob:// scheme
   useEffect(() => {
-    return () => {
-      if (open?.mediaBlob instanceof Blob && openMediaSrc) {
-        URL.revokeObjectURL(openMediaSrc);
+    if (!open) { setOpenMediaSrc(""); return; }
+    let cancelled = false;
+    let objUrl = "";
+
+    async function resolve() {
+      const raw = open.video || open.image || "";
+      if (!raw) { if (!cancelled) setOpenMediaSrc(""); return; }
+
+      if (isLocalBlobUrl(raw)) {
+        objUrl = await resolveLocalBlobUrl(raw);
+        if (!cancelled) setOpenMediaSrc(objUrl);
+      } else if (raw.includes("cloudinary.com") && !open.video) {
+        if (!cancelled) setOpenMediaSrc(getOptimizedCloudinaryUrl(raw, { quality: "auto" }));
+      } else {
+        if (!cancelled) setOpenMediaSrc(raw);
       }
+    }
+
+    resolve();
+    return () => {
+      cancelled = true;
+      if (objUrl) URL.revokeObjectURL(objUrl);
     };
-  }, [open, openMediaSrc]);
+  }, [open]);
 
   const isOpenVideo =
     !!open && (open.mediaType === "video" || (!!open.video && !open.image));
@@ -62,12 +75,12 @@ export default function Memories() {
 
       <GoldDivider />
 
-      <div className="flex flex-wrap gap-2 mb-8">
+      <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar sm:flex-wrap mb-8">
         {["All", ...MEMORY_CATEGORIES].map((c) => (
           <button
             key={c}
             onClick={() => setFilter(c)}
-            className={`text-xs tracking-wide rounded-full px-4 py-2 border transition-colors ${
+            className={`text-xs tracking-wide rounded-full px-4 py-2 border transition-colors shrink-0 ${
               filter === c
                 ? "bg-gold text-ink border-gold"
                 : "border-gold/25 text-parchment/70 hover:border-gold/60"

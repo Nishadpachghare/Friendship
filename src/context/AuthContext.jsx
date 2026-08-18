@@ -25,16 +25,23 @@ export function AuthProvider({ children }) {
   }, []);
 
   function login(username, password) {
-    const clean = username.trim().toLowerCase();
+    const cleanUser = (username || "").trim().toLowerCase();
+    const cleanPass = (password || "").trim();
+
     const found = USERS.find(
-      (u) => u.username === clean && u.password === password,
+      (u) =>
+        (u.username.toLowerCase() === cleanUser || u.displayName.toLowerCase() === cleanUser) &&
+        u.password === cleanPass
     );
-    if (!found)
-      return { ok: false, error: "Those details don\u2019t match. Try again." };
+
+    if (!found) {
+      return { ok: false, error: "Incorrect username or password. Please try again." };
+    }
+
     setUser(found);
     localStorage.setItem(
       SESSION_KEY,
-      JSON.stringify({ username: found.username }),
+      JSON.stringify({ username: found.username })
     );
     return { ok: true };
   }

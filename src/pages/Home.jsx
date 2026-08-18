@@ -88,21 +88,21 @@ export default function Home() {
         transition={{ duration: 0.7 }}
       >
         <p className="text-xs tracking-[0.4em] text-ash mb-3 uppercase">
-          Welcome back, Bhommiii
+          Welcome back, {user?.displayName || 'Bhoomi'}
         </p>
-        <h1 className="font-display text-5xl sm:text-7xl leading-[1.05] gold-text-anim mb-6">
+        <h1 className="font-display text-4xl sm:text-7xl leading-[1.08] gold-text-anim mb-6">
           I didn't know you'd become this important to me.
         </h1>
-        <p className="font-display italic text-xl sm:text-2xl text-parchment/80 max-w-2xl leading-relaxed">
+        <p className="font-display italic text-lg sm:text-2xl text-parchment/80 max-w-2xl leading-relaxed">
           "I didn't know that day would be the beginning of something I'd come to value so deeply. Some friendships don't need a reason to become special—they simply become a part of your life that you quietly never want to lose."
         </p>
 
         {/* First Meet Info Box */}
-        <div className="glass rounded-xl p-5 mt-8 max-w-4xl border border-gold/15 bg-gradient-to-r from-gold/5 via-transparent to-transparent">
-          <p className="text-xs font-bold text-gold tracking-widest uppercase mb-3.5">
+        <div className="glass rounded-2xl p-5 sm:p-6 mt-8 max-w-4xl border border-gold/15 bg-gradient-to-r from-gold/5 via-transparent to-transparent">
+          <p className="text-xs font-bold text-gold tracking-widest uppercase mb-4">
             OUR FIRST MEETING
           </p>
-          <div className="grid sm:grid-cols-3 gap-5 text-sm text-parchment/70">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5 text-sm text-parchment/70">
             <div className="flex items-center gap-3">
               <span className="p-2 rounded-lg bg-gold/10 text-gold">
                 <MapPin size={18} />

@@ -4,5 +4,7 @@ export const CLOUDINARY_CONFIG = {
   apiKey: '363764621792389',
   apiSecret: 'SVDSNkLg-dxfWvx9TLHii6ZrVPQ',
   folder: 'friendship_story',
-  uploadPreset: 'friendship_preset', // Optional unsigned preset fallback
+  // Go to: https://console.cloudinary.com/settings/upload
+  // Click "Add upload preset" → name it "friendship_preset" → set Signing mode to "Unsigned" → Save
+  uploadPreset: 'friendship_preset',
 };

@@ -29,11 +29,11 @@ export default function Stats() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: i * 0.05 }}
-            className="glass rounded-xl p-6 flex flex-col items-center justify-center text-center relative overflow-hidden group hover:border-gold/40 hover:shadow-goldglow transition-all duration-300 bg-gradient-to-b hover:from-gold/5 hover:to-transparent"
+            className="glass rounded-xl p-4 sm:p-6 flex flex-col items-center justify-center text-center relative overflow-hidden group hover:border-gold/40 hover:shadow-goldglow transition-all duration-300 bg-gradient-to-b hover:from-gold/5 hover:to-transparent"
           >
-            <span className="text-3xl mb-3 transform group-hover:scale-110 transition-transform duration-300">{r.emoji}</span>
-            <span className="text-3xl sm:text-4xl font-display text-gold font-bold mb-1.5">{STATS[r.key]}</span>
-            <span className="text-[10px] text-ash tracking-widest uppercase font-bold">{r.label}</span>
+            <span className="text-2xl sm:text-3xl mb-2 sm:mb-3 transform group-hover:scale-110 transition-transform duration-300">{r.emoji}</span>
+            <span className="text-2xl sm:text-4xl font-display text-gold font-bold mb-1">{STATS[r.key]}</span>
+            <span className="text-[10px] text-ash tracking-widest uppercase font-bold leading-tight">{r.label}</span>
           </motion.div>
         ))}
       </div>

@@ -36,8 +36,9 @@ export default function Navbar() {
   const navigate = useNavigate()
 
   function handleLogout() {
+    setOpen(false)
     logout()
-    navigate('/login')
+    navigate('/login', { replace: true })
   }
 
   function handleMouseEnter(label) {
