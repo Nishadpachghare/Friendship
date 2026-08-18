@@ -4,6 +4,7 @@ import React, {
   useState,
   useEffect,
   useCallback,
+  useMemo,
 } from "react";
 import {
   TIMELINE,
@@ -15,9 +16,9 @@ import { quizApi, guessPhotoApi, scoresApi, timelineApi, memoriesApi, isServerRe
 
 const DataContext = createContext(null);
 const STORE_KEY = "ourstory_data_v1";
-const DB_NAME   = "ourstory_db_v1";
-const DB_STORE  = "kv";
-const DB_KEY    = "app_state";
+const DB_NAME = "ourstory_db_v1";
+const DB_STORE = "kv";
+const DB_KEY = "app_state";
 
 // ─── Local IndexedDB helpers (for non-game data) ──────────────────────────────
 function getDefaultStore() {
@@ -59,7 +60,7 @@ function openDb() {
       if (!db.objectStoreNames.contains(DB_STORE)) db.createObjectStore(DB_STORE);
     };
     request.onsuccess = () => resolve(request.result);
-    request.onerror   = () => reject(request.error);
+    request.onerror = () => reject(request.error);
   });
 }
 
@@ -69,7 +70,7 @@ async function readDbStore() {
     const tx = db.transaction(DB_STORE, "readonly");
     const req = tx.objectStore(DB_STORE).get(DB_KEY);
     req.onsuccess = () => resolve(req.result || null);
-    req.onerror   = () => reject(req.error);
+    req.onerror = () => reject(req.error);
     tx.oncomplete = () => db.close();
   });
 }
@@ -80,7 +81,7 @@ async function writeDbStore(value) {
     const tx = db.transaction(DB_STORE, "readwrite");
     tx.objectStore(DB_STORE).put(value, DB_KEY);
     tx.oncomplete = () => { db.close(); resolve(); };
-    tx.onerror    = () => { db.close(); reject(tx.error); };
+    tx.onerror = () => { db.close(); reject(tx.error); };
   });
 }
 
@@ -90,23 +91,23 @@ async function clearDbStore() {
     const tx = db.transaction(DB_STORE, "readwrite");
     tx.objectStore(DB_STORE).delete(DB_KEY);
     tx.oncomplete = () => { db.close(); resolve(); };
-    tx.onerror    = () => { db.close(); reject(tx.error); };
+    tx.onerror = () => { db.close(); reject(tx.error); };
   });
 }
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 export function DataProvider({ children }) {
-  const [store, setStore]       = useState(getDefaultStore);
+  const [store, setStore] = useState(getDefaultStore);
   const [hydrated, setHydrated] = useState(false);
 
   // ── Game, Timeline & Memories data from MongoDB ──────────────────────────────
-  const [quizQuestions,    setQuizQuestions]    = useState([]);
+  const [quizQuestions, setQuizQuestions] = useState([]);
   const [guessPhotoRounds, setGuessPhotoRounds] = useState([]);
-  const [gameScores,       setGameScores]       = useState([]);
-  const [mongoTimeline,    setMongoTimeline]    = useState([]);
-  const [mongoMemories,    setMongoMemories]    = useState([]);
-  const [serverOnline,     setServerOnline]     = useState(true);
-  const [gameDataLoading,  setGameDataLoading]  = useState(true);
+  const [gameScores, setGameScores] = useState([]);
+  const [mongoTimeline, setMongoTimeline] = useState([]);
+  const [mongoMemories, setMongoMemories] = useState([]);
+  const [serverOnline, setServerOnline] = useState(true);
+  const [gameDataLoading, setGameDataLoading] = useState(true);
 
   // ── Hydrate local store (IndexedDB) ────────────────────────────────────────
   useEffect(() => {
