@@ -9,10 +9,16 @@ const URI = process.env.MONGO_URI || 'mongodb+srv://pachgharenishad05_db_user:lh
 app.use(cors({ origin: true }));
 app.use(express.json({ limit: '50mb' }));
 
+// ── Health check (MUST BE FIRST, NO DB DEPENDENCY) ───────────────────────────
+app.get('/api/health', (_req, res) => res.json({ ok: true }));
+
 let db;
 async function getDb() {
   if (db) return db;
-  const client = new MongoClient(URI);
+  const client = new MongoClient(URI, {
+    connectTimeoutMS: 8000,
+    serverSelectionTimeoutMS: 8000,
+  });
   await client.connect();
   db = client.db('friendship_story');
   console.log('✅ MongoDB connected in serverless function →', db.databaseName);
@@ -46,9 +52,6 @@ function makeQuery(id) {
   }
   return { id: id };
 }
-
-// ── Health check ──
-app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
 // ── Timeline ──
 const SEED_TIMELINE = [
