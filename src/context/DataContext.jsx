@@ -11,7 +11,7 @@ import {
   INSIDE_JOKES,
   FUTURE_MEMORIES,
 } from "../data/seedData.js";
-import { quizApi, guessPhotoApi, scoresApi, timelineApi, isServerReachable } from "../utils/api.js";
+import { quizApi, guessPhotoApi, scoresApi, timelineApi, memoriesApi, isServerReachable } from "../utils/api.js";
 
 const DataContext = createContext(null);
 const STORE_KEY = "ourstory_data_v1";
@@ -99,11 +99,12 @@ export function DataProvider({ children }) {
   const [store, setStore]       = useState(getDefaultStore);
   const [hydrated, setHydrated] = useState(false);
 
-  // ── Game & Timeline data from MongoDB ───────────────────────────────────────
+  // ── Game, Timeline & Memories data from MongoDB ──────────────────────────────
   const [quizQuestions,    setQuizQuestions]    = useState([]);
   const [guessPhotoRounds, setGuessPhotoRounds] = useState([]);
   const [gameScores,       setGameScores]       = useState([]);
   const [mongoTimeline,    setMongoTimeline]    = useState([]);
+  const [mongoMemories,    setMongoMemories]    = useState([]);
   const [serverOnline,     setServerOnline]     = useState(true);
   const [gameDataLoading,  setGameDataLoading]  = useState(true);
 
@@ -136,7 +137,7 @@ export function DataProvider({ children }) {
     writeDbStore(store).catch((e) => console.error("Could not persist story data", e));
   }, [store, hydrated]);
 
-  // ── Fetch game data & timeline from MongoDB ─────────────────────────────────
+  // ── Fetch game data, timeline & memories from MongoDB ──────────────────────
   useEffect(() => {
     let active = true;
     (async () => {
@@ -153,17 +154,19 @@ export function DataProvider({ children }) {
 
       setServerOnline(true);
       try {
-        const [quiz, guessPhoto, scores, timelineEvents] = await Promise.all([
+        const [quiz, guessPhoto, scores, timelineEvents, memoriesData] = await Promise.all([
           quizApi.getAll(),
           guessPhotoApi.getAll(),
           scoresApi.getAll(),
           timelineApi.getAll(),
+          memoriesApi.getAll(),
         ]);
         if (active) {
           setQuizQuestions(quiz);
           setGuessPhotoRounds(guessPhoto);
           setGameScores(scores);
           setMongoTimeline(timelineEvents);
+          setMongoMemories(memoriesData);
         }
       } catch (e) {
         console.error("Could not load MongoDB data:", e);
@@ -175,12 +178,24 @@ export function DataProvider({ children }) {
   }, []);
 
   // ─── Actions ────────────────────────────────────────────────────────────────
-  const addMemory = useCallback((memory) => {
+  const addMemory = useCallback(async (memory) => {
     setStore((prev) => ({ ...prev, memories: [{ ...memory, id: "m_" + Date.now() }, ...prev.memories] }));
+    try {
+      const created = await memoriesApi.create(memory);
+      setMongoMemories((prev) => [created, ...prev]);
+    } catch (e) {
+      console.error("addMemory MongoDB error:", e);
+    }
   }, []);
 
-  const deleteMemory = useCallback((memoryId) => {
+  const deleteMemory = useCallback(async (memoryId) => {
     setStore((prev) => ({ ...prev, memories: prev.memories.filter((m) => m.id !== memoryId) }));
+    try {
+      await memoriesApi.remove(memoryId);
+      setMongoMemories((prev) => prev.filter((m) => m.id !== memoryId));
+    } catch (e) {
+      console.error("deleteMemory MongoDB error:", e);
+    }
   }, []);
 
   const addJoke = useCallback((joke) => {
@@ -299,12 +314,15 @@ export function DataProvider({ children }) {
   }, []);
 
   const effectiveTimeline = mongoTimeline.length > 0 ? mongoTimeline : store.timeline;
+  const effectiveMemories = mongoMemories.length > 0 ? mongoMemories : store.memories;
 
   return (
     <DataContext.Provider
       value={{
         ...store,
         timeline: effectiveTimeline,
+        memories: effectiveMemories,
+        mongoMemories,
         // MongoDB-backed game data, timeline & scores
         quizQuestions,
         guessPhotoRounds,

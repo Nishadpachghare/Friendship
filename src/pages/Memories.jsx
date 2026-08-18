@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Plus, Trash2, Cloud } from "lucide-react";
+import { X, Plus, Trash2, Cloud, Database } from "lucide-react";
 import { useData } from "../context/DataContext.jsx";
 import { MEMORY_CATEGORIES } from "../data/seedData.js";
 import MemoryCard from "../components/MemoryCard.jsx";
@@ -61,8 +61,11 @@ export default function Memories() {
           <p className="text-xs tracking-[0.4em] text-ash mb-2">
             THE SCRAPBOOK
           </p>
-          <h1 className="font-display text-5xl gold-text-anim">
-            Memory Gallery
+          <h1 className="font-display text-4xl sm:text-5xl gold-text-anim flex flex-wrap items-center gap-3">
+            <span>Memory Gallery</span>
+            <span className="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full font-sans tracking-wide flex items-center gap-1 font-normal">
+              <Database size={10} /> MongoDB
+            </span>
           </h1>
         </div>
         <button

@@ -61,6 +61,13 @@ export const timelineApi = {
   remove:  (id)         => request('DELETE', `/timeline/${id}`),
 };
 
+// ── Memories / Scrapbook ──────────────────────────────────────────────────────
+export const memoriesApi = {
+  getAll:  ()           => request('GET',    '/memories'),
+  create:  (data)       => request('POST',   '/memories', data),
+  remove:  (id)         => request('DELETE', `/memories/${id}`),
+};
+
 /** Returns true if the backend server is reachable */
 export async function isServerReachable() {
   try {
