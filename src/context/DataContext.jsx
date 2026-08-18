@@ -179,10 +179,15 @@ export function DataProvider({ children }) {
 
   // ─── Actions ────────────────────────────────────────────────────────────────
   const addMemory = useCallback(async (memory) => {
-    setStore((prev) => ({ ...prev, memories: [{ ...memory, id: "m_" + Date.now() }, ...prev.memories] }));
+    const tempId = "m_" + Date.now();
+    const newMem = { ...memory, id: tempId };
+
+    setStore((prev) => ({ ...prev, memories: [newMem, ...prev.memories] }));
     try {
       const created = await memoriesApi.create(memory);
-      setMongoMemories((prev) => [created, ...prev]);
+      if (created) {
+        setMongoMemories((prev) => [created, ...prev.filter((m) => m.id !== tempId && m.id !== created.id)]);
+      }
     } catch (e) {
       console.error("addMemory MongoDB error:", e);
     }
@@ -190,9 +195,9 @@ export function DataProvider({ children }) {
 
   const deleteMemory = useCallback(async (memoryId) => {
     setStore((prev) => ({ ...prev, memories: prev.memories.filter((m) => m.id !== memoryId) }));
+    setMongoMemories((prev) => prev.filter((m) => m.id !== memoryId));
     try {
       await memoriesApi.remove(memoryId);
-      setMongoMemories((prev) => prev.filter((m) => m.id !== memoryId));
     } catch (e) {
       console.error("deleteMemory MongoDB error:", e);
     }
@@ -203,18 +208,23 @@ export function DataProvider({ children }) {
   }, []);
 
   const addTimelineEvent = useCallback(async (event) => {
-    // 1. Also update local store as fallback
+    const tempId = "t_" + Date.now();
+    const newEvt = { ...event, id: tempId };
+
     setStore((prev) => ({
       ...prev,
-      timeline: [...prev.timeline, { ...event, id: "t_" + Date.now() }].sort(
-        (a, b) => a.date.localeCompare(b.date),
-      ),
+      timeline: [...prev.timeline, newEvt].sort((a, b) => a.date.localeCompare(b.date)),
     }));
 
-    // 2. Persist to MongoDB
     try {
       const created = await timelineApi.create(event);
-      setMongoTimeline((prev) => [...prev, created].sort((a, b) => a.date.localeCompare(b.date)));
+      if (created) {
+        setMongoTimeline((prev) =>
+          [...prev.filter((t) => t.id !== tempId && t.id !== created.id), created].sort((a, b) =>
+            a.date.localeCompare(b.date),
+          ),
+        );
+      }
     } catch (e) {
       console.error("addTimelineEvent MongoDB error:", e);
     }
@@ -236,10 +246,11 @@ export function DataProvider({ children }) {
   }, []);
 
   // ─── Quiz CRUD → MongoDB ────────────────────────────────────────────────────
-  const addQuizQuestion = useCallback(async (question) => {
+  const addQuizQuestion = useCallback(async (questionData) => {
     try {
-      const created = await quizApi.create(question);
+      const created = await quizApi.create(questionData);
       setQuizQuestions((prev) => [...prev, created]);
+      return created;
     } catch (e) {
       console.error("addQuizQuestion failed:", e);
       throw e;
@@ -267,10 +278,11 @@ export function DataProvider({ children }) {
   }, []);
 
   // ─── Guess Photo CRUD → MongoDB ─────────────────────────────────────────────
-  const addGuessPhotoRound = useCallback(async (round) => {
+  const addGuessPhotoRound = useCallback(async (roundData) => {
     try {
-      const created = await guessPhotoApi.create(round);
+      const created = await guessPhotoApi.create(roundData);
       setGuessPhotoRounds((prev) => [...prev, created]);
+      return created;
     } catch (e) {
       console.error("addGuessPhotoRound failed:", e);
       throw e;
@@ -313,8 +325,19 @@ export function DataProvider({ children }) {
     setStore(getDefaultStore());
   }, []);
 
-  const effectiveTimeline = mongoTimeline.length > 0 ? mongoTimeline : store.timeline;
-  const effectiveMemories = mongoMemories.length > 0 ? mongoMemories : store.memories;
+  const effectiveTimeline = useMemo(() => {
+    if (mongoTimeline.length === 0) return store.timeline;
+    const mongoIds = new Set(mongoTimeline.map((t) => t.id || t._id));
+    const localOnly = store.timeline.filter((t) => t && t.id && !mongoIds.has(t.id));
+    return [...mongoTimeline, ...localOnly].sort((a, b) => a.date.localeCompare(b.date));
+  }, [mongoTimeline, store.timeline]);
+
+  const effectiveMemories = useMemo(() => {
+    if (mongoMemories.length === 0) return store.memories;
+    const mongoIds = new Set(mongoMemories.map((m) => m.id || m._id));
+    const localOnly = store.memories.filter((m) => m && m.id && !mongoIds.has(m.id));
+    return [...mongoMemories, ...localOnly];
+  }, [mongoMemories, store.memories]);
 
   return (
     <DataContext.Provider
