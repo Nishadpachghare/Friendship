@@ -3,7 +3,18 @@
  * All game data (quiz questions, guess-photo rounds) is fetched from here.
  */
 
-const BASE = 'http://localhost:3001/api';
+const getApiBase = () => {
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host !== 'localhost' && host !== '127.0.0.1') {
+      return '/api';
+    }
+  }
+  return 'http://localhost:3001/api';
+};
+
+const BASE = getApiBase();
 
 async function request(method, path, body) {
   const opts = {
