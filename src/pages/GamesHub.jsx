@@ -56,7 +56,10 @@ export default function GamesHub() {
         >
           <WifiOff size={15} className="text-red-400 shrink-0" />
           <span className="text-red-300/90">
-            Backend server offline — run <code className="bg-red-900/30 px-1.5 py-0.5 rounded text-xs">npm run server</code> in the project folder to load game data from MongoDB.
+            {typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
+              ? 'Connecting to MongoDB Cloud... please wait a moment while serverless backend warms up.'
+              : <>Backend server offline — run <code className="bg-red-900/30 px-1.5 py-0.5 rounded text-xs">npm run server</code> in the project folder to load game data from MongoDB.</>
+            }
           </span>
         </motion.div>
       )}
