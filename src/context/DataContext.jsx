@@ -36,9 +36,9 @@ function normalizeStore(saved) {
   const customTimeline = savedTimeline.filter(
     (item) => typeof item?.id === "string" && item.id.startsWith("t_"),
   );
-  const rawMemories = Array.isArray(saved?.memories) ? saved.memories : MEMORIES;
+  const rawMemories = Array.isArray(saved?.memories) ? saved.memories : [];
   const cleanMemories = rawMemories.filter(
-    (m) => !m?.caption || !m.caption.toLowerCase().includes("oiykjn")
+    (m) => m && m.id !== "m1" && m.id !== "m2" && m.id !== "m3" && (!m?.caption || !m.caption.toLowerCase().includes("oiykjn"))
   );
 
   return {
@@ -334,10 +334,10 @@ export function DataProvider({ children }) {
   }, [mongoTimeline, store.timeline]);
 
   const effectiveMemories = useMemo(() => {
-    if (mongoMemories.length === 0) return store.memories;
-    const mongoIds = new Set(mongoMemories.map((m) => m.id || m._id));
-    const localOnly = store.memories.filter((m) => m && m.id && !mongoIds.has(m.id));
-    return [...mongoMemories, ...localOnly];
+    const realMongo = mongoMemories.filter((m) => m && m.id !== "m1" && m.id !== "m2" && m.id !== "m3");
+    const mongoIds = new Set(realMongo.map((m) => m.id || m._id));
+    const localOnly = store.memories.filter((m) => m && m.id && m.id !== "m1" && m.id !== "m2" && m.id !== "m3" && !mongoIds.has(m.id));
+    return [...realMongo, ...localOnly];
   }, [mongoMemories, store.memories]);
 
   return (

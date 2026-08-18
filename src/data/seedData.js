@@ -28,11 +28,7 @@ export const TIMELINE = [
   { id: 't6', title: 'First Fight', emoji: '\uD83D\uDE2D', date: '2026-08-03', text: 'I still remember that day, and I know I was wrong. I\'m truly sorry, yaar. Both our fights taught me a lot not just about my mistakes, but about how much this friendship really means to me.' },
 ]
 
-export const MEMORIES = [
-  { id: 'm1', category: 'Hangouts', date: '2024-09-18', caption: 'We had absolutely no idea this would become a memory.', image: '' },
-  { id: 'm2', category: 'Dumb Moments', date: '2024-10-02', caption: 'This is the face of someone about to say something incredibly stupid.', image: '' },
-  { id: 'm3', category: 'Special Days', date: '2025-02-18', caption: 'A completely ordinary day that turned into a core memory.', image: '' },
-]
+export const MEMORIES = []
 
 export const MEMORY_CATEGORIES = ['Random Moments', 'Dumb Moments', 'Emotional Moments', 'Hangouts', 'Special Days', 'Screenshots']
 

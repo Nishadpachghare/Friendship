@@ -115,21 +115,12 @@ app.delete('/api/timeline/:id', async (req, res) => {
 });
 
 // ── Memories ──
-const SEED_MEMORIES = [
-  { category: 'Hangouts', date: '2024-09-18', caption: 'We had absolutely no idea this would become a memory.', image: '' },
-  { category: 'Dumb Moments', date: '2024-10-02', caption: 'This is the face of someone about to say something incredibly stupid.', image: '' },
-  { category: 'Special Days', date: '2025-02-18', caption: 'A completely ordinary day that turned into a core memory.', image: '' },
-];
-
 app.get('/api/memories', async (_req, res) => {
   try {
     const col = getCollection('memories');
-    let docs = await col.find({}).sort({ createdAt: -1 }).toArray();
-    if (docs.length === 0) {
-      const seedDocs = SEED_MEMORIES.map((item) => ({ ...item, createdAt: new Date() }));
-      await col.insertMany(seedDocs);
-      docs = await col.find({}).sort({ createdAt: -1 }).toArray();
-    }
+    // Purge old dummy placeholder IDs if present
+    await col.deleteMany({ id: { $in: ['m1', 'm2', 'm3'] } }).catch(() => {});
+    const docs = await col.find({}).sort({ createdAt: -1 }).toArray();
     res.json(docs.map(toClient));
   } catch (e) {
     res.status(500).json({ error: e.message });
