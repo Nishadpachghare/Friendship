@@ -11,17 +11,33 @@ app.use(express.json({ limit: '50mb' }));
 // ── Health check (NO DB DEPENDENCY FOR INSTANT 200 OK) ────────────────────────
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
-let db;
+let cachedClient = null;
+let db = null;
+
 async function getDb() {
   if (db) return db;
-  const client = new MongoClient(URI, {
-    connectTimeoutMS: 8000,
-    serverSelectionTimeoutMS: 8000,
-  });
-  await client.connect();
-  db = client.db('friendship_story');
-  console.log('✅ MongoDB connected in Vercel serverless handler →', db.databaseName);
-  return db;
+  if (!cachedClient) {
+    cachedClient = new MongoClient(URI, {
+      maxPoolSize: 10,
+      connectTimeoutMS: 10000,
+      serverSelectionTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
+      tls: true,
+      tlsAllowInvalidCertificates: true,
+    });
+  }
+
+  try {
+    await cachedClient.connect();
+    db = cachedClient.db('friendship_story');
+    console.log('✅ MongoDB connected in Vercel serverless handler →', db.databaseName);
+    return db;
+  } catch (err) {
+    console.error('MongoDB connection error, resetting client:', err);
+    cachedClient = null;
+    db = null;
+    throw err;
+  }
 }
 
 app.use(async (_req, _res, next) => {
@@ -29,7 +45,7 @@ app.use(async (_req, _res, next) => {
     await getDb();
     next();
   } catch (err) {
-    console.error('MongoDB connection error:', err);
+    console.error('MongoDB middleware connection error:', err);
     next(err);
   }
 });
