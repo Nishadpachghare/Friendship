@@ -7,7 +7,9 @@ const SESSION_KEY = "ourstory_session_v1";
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
     try {
-      const raw = localStorage.getItem(SESSION_KEY) || sessionStorage.getItem(SESSION_KEY);
+      // Clear old legacy localStorage session to enforce fresh login page on new session
+      localStorage.removeItem(SESSION_KEY);
+      const raw = sessionStorage.getItem(SESSION_KEY);
       if (raw) {
         const saved = JSON.parse(raw);
         const savedUsername = typeof saved?.username === "string" ? saved.username : "";
@@ -36,15 +38,15 @@ export function AuthProvider({ children }) {
 
     setUser(found);
     const sessionData = JSON.stringify({ username: found.username });
-    localStorage.setItem(SESSION_KEY, sessionData);
     sessionStorage.setItem(SESSION_KEY, sessionData);
+    localStorage.removeItem(SESSION_KEY);
     return { ok: true };
   }
 
   function logout() {
     setUser(null);
-    localStorage.removeItem(SESSION_KEY);
     sessionStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(SESSION_KEY);
   }
 
   return (
