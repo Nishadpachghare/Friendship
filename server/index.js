@@ -142,6 +142,7 @@ app.post('/api/memories', async (req, res) => {
   try {
     const doc = { ...req.body, createdAt: new Date() };
     const result = await getCollection('memories').insertOne(doc);
+    console.log('✅ Memory saved to MongoDB Atlas:', result.insertedId);
     res.status(201).json(toClient({ _id: result.insertedId, ...doc }));
   } catch (e) {
     console.error('[API Error POST /api/memories]:', e);

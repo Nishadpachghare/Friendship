@@ -147,22 +147,26 @@ app.delete('/api/timeline/:id', async (req, res) => {
 // ── Memories ──
 app.get('/api/memories', async (_req, res) => {
   try {
-    const col = getCollection('memories');
-    // Purge old dummy placeholder IDs if present
+    const database = await getDb();
+    const col = database.collection('memories');
     await col.deleteMany({ id: { $in: ['m1', 'm2', 'm3'] } }).catch(() => {});
     const docs = await col.find({}).sort({ createdAt: -1 }).toArray();
     res.json(docs.map(toClient));
   } catch (e) {
+    console.error('[API GET /api/memories Error]:', e);
     res.status(500).json({ error: e.message });
   }
 });
 
 app.post('/api/memories', async (req, res) => {
   try {
+    const database = await getDb();
     const doc = { ...req.body, createdAt: new Date() };
-    const result = await getCollection('memories').insertOne(doc);
+    const result = await database.collection('memories').insertOne(doc);
+    console.log('✅ Memory saved to MongoDB Atlas:', result.insertedId);
     res.status(201).json(toClient({ _id: result.insertedId, ...doc }));
   } catch (e) {
+    console.error('[API POST /api/memories Error]:', e);
     res.status(500).json({ error: e.message });
   }
 });
@@ -170,9 +174,11 @@ app.post('/api/memories', async (req, res) => {
 app.delete('/api/memories/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    await getCollection('memories').deleteOne(makeQuery(id));
+    const database = await getDb();
+    await database.collection('memories').deleteOne(makeQuery(id));
     res.json({ ok: true });
   } catch (e) {
+    console.error('[API DELETE /api/memories/:id Error]:', e);
     res.status(500).json({ error: e.message });
   }
 });
