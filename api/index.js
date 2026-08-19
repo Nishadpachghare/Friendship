@@ -31,6 +31,14 @@ async function getDb() {
     await cachedClient.connect();
     db = cachedClient.db('friendship_story');
     console.log('✅ MongoDB connected in Vercel serverless handler →', db.databaseName);
+
+    // Ensure memories collection exists in MongoDB Atlas Data Explorer
+    db.listCollections({ name: 'memories' }).toArray().then((cols) => {
+      if (cols.length === 0) {
+        db.createCollection('memories').catch(() => {});
+      }
+    }).catch(() => {});
+
     return db;
   } catch (err) {
     console.error('MongoDB connection error, resetting client:', err);

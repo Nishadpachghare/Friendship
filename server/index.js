@@ -20,6 +20,13 @@ async function connectDb() {
   await client.connect();
   db = client.db('friendship_story');
   console.log('✅  MongoDB connected →', db.databaseName);
+
+  // Ensure memories collection is created in MongoDB Atlas Data Explorer
+  const cols = await db.listCollections({ name: 'memories' }).toArray();
+  if (cols.length === 0) {
+    await db.createCollection('memories');
+    console.log('✨  Created memories collection in friendship_story database!');
+  }
 }
 
 function getCollection(name) {
