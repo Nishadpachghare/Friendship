@@ -138,36 +138,45 @@ export function DataProvider({ children }) {
     writeDbStore(store).catch((e) => console.error("Could not persist story data", e));
   }, [store, hydrated]);
 
-  // ── Fetch game data, timeline & memories from MongoDB ──────────────────────
+  // ── Fetch game data, timeline & memories from MongoDB Atlas ────────────────
+  const refreshCloudData = useCallback(async (isInitial = false) => {
+    if (isInitial) setGameDataLoading(true);
+    try {
+      const [quiz, guessPhoto, scores, timelineEvents, memoriesData] = await Promise.all([
+        quizApi.getAll().catch(() => []),
+        guessPhotoApi.getAll().catch(() => []),
+        scoresApi.getAll().catch(() => []),
+        timelineApi.getAll().catch(() => []),
+        memoriesApi.getAll().catch(() => []),
+      ]);
+      setQuizQuestions(quiz);
+      setGuessPhotoRounds(guessPhoto);
+      setGameScores(scores);
+      setMongoTimeline(timelineEvents);
+      setMongoMemories(memoriesData);
+      setServerOnline(true);
+    } catch (e) {
+      console.error("Could not load MongoDB data:", e);
+      setServerOnline(false);
+    } finally {
+      if (isInitial) setGameDataLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     let active = true;
-    (async () => {
-      setGameDataLoading(true);
-      try {
-        const [quiz, guessPhoto, scores, timelineEvents, memoriesData] = await Promise.all([
-          quizApi.getAll().catch(() => []),
-          guessPhotoApi.getAll().catch(() => []),
-          scoresApi.getAll().catch(() => []),
-          timelineApi.getAll().catch(() => []),
-          memoriesApi.getAll().catch(() => []),
-        ]);
-        if (active) {
-          setQuizQuestions(quiz);
-          setGuessPhotoRounds(guessPhoto);
-          setGameScores(scores);
-          setMongoTimeline(timelineEvents);
-          setMongoMemories(memoriesData);
-          setServerOnline(true);
-        }
-      } catch (e) {
-        console.error("Could not load MongoDB data:", e);
-        if (active) setServerOnline(false);
-      } finally {
-        if (active) setGameDataLoading(false);
-      }
-    })();
-    return () => { active = false; };
-  }, []);
+    refreshCloudData(true);
+
+    // Auto-refresh from MongoDB Atlas every 12 seconds so all connected devices stay 100% in sync
+    const timer = setInterval(() => {
+      if (active) refreshCloudData(false);
+    }, 12000);
+
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [refreshCloudData]);
 
   // ─── Actions ────────────────────────────────────────────────────────────────
   const addMemory = useCallback(async (memory) => {
