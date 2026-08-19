@@ -7,9 +7,10 @@
 export const USERS = [
   {
     id: 'user1',
-    username: 'badak',
+    username: 'bhoomiii',
     password: 'Godknows',
-    displayName: 'Badak',
+    displayName: 'Bhoomiii',
+    aliases: ['badak', 'bhoomi'],
     avatar: 'B',
   },
   {

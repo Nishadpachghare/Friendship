@@ -28,7 +28,9 @@ export function AuthProvider({ children }) {
 
     const found = USERS.find(
       (u) =>
-        (u.username.toLowerCase() === cleanUser || u.displayName.toLowerCase() === cleanUser) &&
+        (u.username.toLowerCase() === cleanUser ||
+         u.displayName.toLowerCase() === cleanUser ||
+         (u.aliases && u.aliases.map((a) => a.toLowerCase()).includes(cleanUser))) &&
         (u.password === cleanPass || u.password.toLowerCase() === cleanPass.toLowerCase())
     );
 
