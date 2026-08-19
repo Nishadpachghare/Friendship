@@ -6,23 +6,7 @@ const SESSION_KEY = "ourstory_session_v1";
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(SESSION_KEY);
-      if (raw) {
-        const saved = JSON.parse(raw);
-        const savedUsername =
-          typeof saved?.username === "string" ? saved.username : "";
-        const found = USERS.find((u) => u.username === savedUsername);
-        if (found) setUser(found);
-      }
-    } catch (e) {
-      console.error("Could not restore session", e);
-    }
-    setReady(true);
-  }, []);
+  const [ready, setReady] = useState(true);
 
   function login(username, password) {
     const cleanUser = (username || "").trim().toLowerCase();
