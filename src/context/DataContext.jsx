@@ -172,13 +172,27 @@ export function DataProvider({ children }) {
   // ─── Actions ────────────────────────────────────────────────────────────────
   const addMemory = useCallback(async (memory) => {
     const tempId = "m_" + Date.now();
-    const newMem = { ...memory, id: tempId };
+    const tempMem = { ...memory, id: tempId, _id: tempId };
 
-    setStore((prev) => ({ ...prev, memories: [newMem, ...prev.memories] }));
+    // Optimistically update both states so new memory shows instantly on frontend UI
+    setMongoMemories((prev) => [tempMem, ...prev]);
+    setStore((prev) => ({ ...prev, memories: [tempMem, ...prev.memories] }));
+
     try {
       const created = await memoriesApi.create(memory);
       if (created) {
-        setMongoMemories((prev) => [created, ...prev.filter((m) => m.id !== tempId && m.id !== created.id)]);
+        setMongoMemories((prev) => [
+          created,
+          ...prev.filter((m) => m.id !== tempId && m._id !== tempId && m.id !== created.id),
+        ]);
+        setStore((prev) => ({
+          ...prev,
+          memories: [
+            created,
+            ...prev.memories.filter((m) => m.id !== tempId && m._id !== tempId && m.id !== created.id),
+          ],
+        }));
+        console.log("✅ Memory successfully saved to MongoDB Atlas:", created);
       }
     } catch (e) {
       console.error("addMemory MongoDB error:", e);

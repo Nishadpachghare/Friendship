@@ -9,6 +9,7 @@ const URI  = process.env.MONGO_URI || 'mongodb+srv://pachgharenishad05_db_user:l
 
 app.use(cors({ origin: true }));
 app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // URL normalizer: ensures route handlers match regardless of whether path is /api/xyz or /xyz
 app.use((req, _res, next) => {
