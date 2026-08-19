@@ -5,7 +5,7 @@ import { MongoClient, ObjectId } from 'mongodb';
 
 const app  = express();
 const PORT = process.env.PORT || 3001;
-const URI  = process.env.MONGO_URI || 'mongodb+srv://pachgharenishad05_db_user:lh6Ot9GGKnbFlnvj@cluster0.25awifo.mongodb.net/?appName=Cluster0';
+const URI  = process.env.MONGO_URI || 'mongodb+srv://pachgharenishad05_db_user:lh6Ot9GGKnbFlnvj@cluster0.25awifo.mongodb.net/friendship_story?retryWrites=true&w=majority';
 
 app.use(cors({ origin: true }));
 app.use(express.json({ limit: '50mb' }));

@@ -3,7 +3,7 @@ import cors from 'cors';
 import { MongoClient, ObjectId } from 'mongodb';
 
 const app = express();
-const URI = process.env.MONGO_URI || 'mongodb+srv://pachgharenishad05_db_user:lh6Ot9GGKnbFlnvj@cluster0.25awifo.mongodb.net/?appName=Cluster0';
+const URI = process.env.MONGO_URI || 'mongodb+srv://pachgharenishad05_db_user:lh6Ot9GGKnbFlnvj@cluster0.25awifo.mongodb.net/friendship_story?retryWrites=true&w=majority';
 
 // URL normalizer: ensures route handlers match regardless of whether Vercel path is /api/xyz or /xyz
 app.use((req, _res, next) => {
