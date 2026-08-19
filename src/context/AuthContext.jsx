@@ -5,7 +5,19 @@ const AuthContext = createContext(null);
 const SESSION_KEY = "ourstory_session_v1";
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    try {
+      const raw = localStorage.getItem(SESSION_KEY) || sessionStorage.getItem(SESSION_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw);
+        const savedUsername = typeof saved?.username === "string" ? saved.username : "";
+        return USERS.find((u) => u.username === savedUsername) || null;
+      }
+    } catch (e) {
+      console.error("Could not restore session", e);
+    }
+    return null;
+  });
   const [ready, setReady] = useState(true);
 
   function login(username, password) {
@@ -23,16 +35,16 @@ export function AuthProvider({ children }) {
     }
 
     setUser(found);
-    localStorage.setItem(
-      SESSION_KEY,
-      JSON.stringify({ username: found.username })
-    );
+    const sessionData = JSON.stringify({ username: found.username });
+    localStorage.setItem(SESSION_KEY, sessionData);
+    sessionStorage.setItem(SESSION_KEY, sessionData);
     return { ok: true };
   }
 
   function logout() {
     setUser(null);
     localStorage.removeItem(SESSION_KEY);
+    sessionStorage.removeItem(SESSION_KEY);
   }
 
   return (
