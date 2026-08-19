@@ -278,7 +278,7 @@ export default function GuessPhoto() {
             src={imageSrc}
             alt="Guess the memory"
             className="w-full h-full object-cover transition-all duration-500"
-            style={{ filter: answered ? 'none' : 'blur(10px) brightness(0.8)' }}
+            style={{ filter: answered ? 'none' : 'blur(3.5px) brightness(0.9)' }}
           />
         ) : (
           <span className="text-ash text-xs tracking-widest">

@@ -41,7 +41,7 @@ function RoundThumbnail({ image }) {
       src={src}
       alt=""
       className="w-full h-full object-cover"
-      style={{ filter: "blur(4px) brightness(0.8)" }}
+      style={{ filter: "blur(2.5px) brightness(0.9)" }}
     />
   );
 }
@@ -250,7 +250,7 @@ export default function GuessPhotoBuilder() {
               src={imagePreview}
               alt="Round preview"
               className="mt-3 rounded-lg max-h-48 mx-auto object-cover"
-              style={{ filter: "blur(8px) brightness(0.7)" }}
+              style={{ filter: "blur(3.5px) brightness(0.85)" }}
             />
           )}
         </div>
