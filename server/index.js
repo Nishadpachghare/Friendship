@@ -140,7 +140,20 @@ app.get('/api/memories', async (_req, res) => {
 
 app.post('/api/memories', async (req, res) => {
   try {
-    const doc = { ...req.body, createdAt: new Date() };
+    const body = req.body || {};
+    const doc = {
+      caption: (body.caption || "").trim(),
+      date: body.date || new Date().toISOString().split('T')[0],
+      category: body.category || "Random Moments",
+      image: body.image || "",
+      video: body.video || "",
+      mediaType: body.mediaType || (body.video ? "video" : body.image ? "image" : "image"),
+      thumbnail: body.thumbnail || body.image || "",
+      addedBy: body.addedBy || "Nishad",
+      createdAt: new Date(),
+    };
+    if (body.id) doc.id = body.id;
+
     const result = await getCollection('memories').insertOne(doc);
     console.log('✅ Memory saved to MongoDB Atlas:', result.insertedId);
     res.status(201).json(toClient({ _id: result.insertedId, ...doc }));
