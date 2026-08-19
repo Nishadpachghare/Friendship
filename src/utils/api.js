@@ -71,7 +71,7 @@ export const memoriesApi = {
 /** Returns true if the backend server is reachable */
 export async function isServerReachable() {
   try {
-    const res = await fetch(`${BASE}/health`, { signal: AbortSignal.timeout(2000) });
+    const res = await fetch(`${BASE}/health`, { signal: AbortSignal.timeout(8000) });
     return res.ok;
   } catch {
     return false;

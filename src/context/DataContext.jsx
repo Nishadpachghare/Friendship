@@ -143,24 +143,13 @@ export function DataProvider({ children }) {
     let active = true;
     (async () => {
       setGameDataLoading(true);
-      const online = await isServerReachable();
-      if (!active) return;
-
-      if (!online) {
-        console.warn("[API] Backend server not reachable — MongoDB data unavailable.");
-        setServerOnline(false);
-        setGameDataLoading(false);
-        return;
-      }
-
-      setServerOnline(true);
       try {
         const [quiz, guessPhoto, scores, timelineEvents, memoriesData] = await Promise.all([
-          quizApi.getAll(),
-          guessPhotoApi.getAll(),
-          scoresApi.getAll(),
-          timelineApi.getAll(),
-          memoriesApi.getAll(),
+          quizApi.getAll().catch(() => []),
+          guessPhotoApi.getAll().catch(() => []),
+          scoresApi.getAll().catch(() => []),
+          timelineApi.getAll().catch(() => []),
+          memoriesApi.getAll().catch(() => []),
         ]);
         if (active) {
           setQuizQuestions(quiz);
@@ -168,9 +157,11 @@ export function DataProvider({ children }) {
           setGameScores(scores);
           setMongoTimeline(timelineEvents);
           setMongoMemories(memoriesData);
+          setServerOnline(true);
         }
       } catch (e) {
         console.error("Could not load MongoDB data:", e);
+        if (active) setServerOnline(false);
       } finally {
         if (active) setGameDataLoading(false);
       }

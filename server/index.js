@@ -10,8 +10,17 @@ const URI  = process.env.MONGO_URI || 'mongodb+srv://pachgharenishad05_db_user:l
 app.use(cors({ origin: true }));
 app.use(express.json({ limit: '50mb' }));
 
+// URL normalizer: ensures route handlers match regardless of whether path is /api/xyz or /xyz
+app.use((req, _res, next) => {
+  if (req.url && !req.url.startsWith('/api') && !req.url.startsWith('/favicon')) {
+    req.url = '/api' + req.url;
+  }
+  next();
+});
+
 // ── Health check ──
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
+app.get('/health', (_req, res) => res.json({ ok: true }));
 
 let db;
 

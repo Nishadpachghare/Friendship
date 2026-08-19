@@ -5,11 +5,17 @@ import { MongoClient, ObjectId } from 'mongodb';
 const app = express();
 const URI = process.env.MONGO_URI || 'mongodb+srv://pachgharenishad05_db_user:lh6Ot9GGKnbFlnvj@cluster0.25awifo.mongodb.net/?appName=Cluster0';
 
-app.use(cors({ origin: true }));
-app.use(express.json({ limit: '50mb' }));
+// URL normalizer: ensures route handlers match regardless of whether Vercel path is /api/xyz or /xyz
+app.use((req, _res, next) => {
+  if (req.url && !req.url.startsWith('/api') && !req.url.startsWith('/favicon')) {
+    req.url = '/api' + req.url;
+  }
+  next();
+});
 
 // ── Health check (NO DB DEPENDENCY FOR INSTANT 200 OK) ────────────────────────
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
+app.get('/health', (_req, res) => res.json({ ok: true }));
 
 let cachedClient = null;
 let db = null;
