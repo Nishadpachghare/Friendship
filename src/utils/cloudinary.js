@@ -285,28 +285,23 @@ export async function uploadToCloudinary(file, options = {}) {
     } catch { /* use original */ }
   }
 
-  // ── 1. Try unsigned presets ──────────────────────────────────────────────
-  const presets = [CLOUDINARY_CONFIG.uploadPreset, 'friendship_preset', 'ml_default', 'friendship']
-    .filter(Boolean);
-
-  for (const preset of presets) {
+  // ── 1. Try configured unsigned upload preset ──────────────────────────────
+  if (CLOUDINARY_CONFIG.uploadPreset) {
     try {
-      const result = await tryUnsignedUpload(uploadUrl, fileToUpload, preset, folder, resourceType);
+      const result = await tryUnsignedUpload(uploadUrl, fileToUpload, CLOUDINARY_CONFIG.uploadPreset, folder, resourceType);
       if (result) { if (onProgress) onProgress(100); return result; }
-    } catch { /* next */ }
+    } catch { /* proceed to fallback */ }
   }
 
   // ── 2. Try signed upload ─────────────────────────────────────────────────
-  try {
-    const result = await trySignedUpload(uploadUrl, fileToUpload, folder, apiKey, apiSecret, resourceType, onProgress);
-    if (result) return result;
-  } catch { /* fall through */ }
+  if (apiKey && apiSecret) {
+    try {
+      const result = await trySignedUpload(uploadUrl, fileToUpload, folder, apiKey, apiSecret, resourceType, onProgress);
+      if (result) return result;
+    } catch { /* proceed to fallback */ }
+  }
 
-  // ── 3. Local fallback — save blob to IndexedDB ───────────────────────────
-  console.info(
-    '[Memory] Cloudinary not configured — saving locally.\n' +
-    'To enable cloud uploads: console.cloudinary.com → Settings → Upload → ' +
-    'Upload Presets → Add "friendship_preset" (Unsigned).'
-  );
+  // ── 3. Local fallback — save blob to IndexedDB & Data URL ──────────────
+  console.info('[Memory] Using local compressed media storage fallback.');
   return storeLocally(file, resourceType, onProgress);
 }
