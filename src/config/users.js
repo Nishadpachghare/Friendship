@@ -7,9 +7,9 @@
 export const USERS = [
   {
     id: 'user1',
-    username: 'bhoomi',
-    password: 'ourstory1',
-    displayName: 'Bhoomi',
+    username: 'badak',
+    password: 'Godknows',
+    displayName: 'Badak',
     avatar: 'B',
   },
   {
