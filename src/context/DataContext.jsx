@@ -186,10 +186,16 @@ export function DataProvider({ children }) {
   }, []);
 
   const deleteMemory = useCallback(async (memoryId) => {
-    setStore((prev) => ({ ...prev, memories: prev.memories.filter((m) => m.id !== memoryId) }));
-    setMongoMemories((prev) => prev.filter((m) => m.id !== memoryId));
+    if (!memoryId) return;
+    setStore((prev) => ({
+      ...prev,
+      memories: prev.memories.filter((m) => m && m.id !== memoryId && m._id !== memoryId),
+    }));
+    setMongoMemories((prev) => prev.filter((m) => m && m.id !== memoryId && m._id !== memoryId));
+
     try {
       await memoriesApi.remove(memoryId);
+      console.log(`✅ Memory ${memoryId} deleted from MongoDB Atlas`);
     } catch (e) {
       console.error("deleteMemory MongoDB error:", e);
     }

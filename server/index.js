@@ -50,10 +50,12 @@ function toClient(doc) {
 }
 
 function makeQuery(id) {
-  if (ObjectId.isValid(id)) {
-    return { $or: [{ _id: new ObjectId(id) }, { id: id }] };
+  if (!id) return { _id: null };
+  const strId = String(id);
+  if (ObjectId.isValid(strId)) {
+    return { $or: [{ _id: new ObjectId(strId) }, { id: strId }, { _id: strId }] };
   }
-  return { id: id };
+  return { $or: [{ id: strId }, { _id: strId }] };
 }
 
 // ── Timeline ──
